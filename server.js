@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 // Routes
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
+import productosRoutes from './routes/productos.js';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 // Usar rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/productos', productosRoutes);
 
 // Ruta de prueba
 app.get('/api/health', (req, res) => {
