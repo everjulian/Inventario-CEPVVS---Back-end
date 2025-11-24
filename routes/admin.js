@@ -92,47 +92,116 @@ router.get('/users', authenticateToken, requireSuperAdmin, async (req, res) => {
 });
 
 // Eliminar usuario (Solo Admin) - DE AMBAS TABLAS
-router.delete('/users/:userId', authenticateToken, requireSuperAdmin, async (req, res) => {
+// router.delete('/users/:userId', authenticateToken, requireSuperAdmin, async (req, res) => {
+//   try {
+//     const { userId } = req.params;
+
+//     // 1. Buscar el auth_uid en tu tabla
+//     const { data: usuario, error: findError } = await supabaseAdmin
+//       .from('usuarios')
+//       .select('auth_uid')
+//       .eq('id_usuario', userId)
+//       .single();
+
+//     if (findError) {
+//       return res.status(404).json({ error: 'Usuario no encontrado' });
+//     }
+
+//     // 2. Eliminar de TU tabla 'usuarios'
+//     const { error: usuarioError } = await supabaseAdmin
+//       .from('usuarios')
+//       .delete()
+//       .eq('id_usuario', userId);
+
+//     if (usuarioError) {
+//       console.error('Error eliminando de tabla usuarios:', usuarioError);
+//     }
+
+//     // 3. Eliminar usuario de Auth (si tiene auth_uid)
+//     if (usuario.auth_uid) {
+//       const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(usuario.auth_uid);
+
+//       if (authError) {
+//         console.error('Error eliminando de auth:', authError);
+//       }
+//     }
+
+//     res.json({ 
+//       success: true, 
+//       message: 'Usuario eliminado correctamente' 
+//     });
+
+//   } catch (error) {
+//     res.status(500).json({ error: 'Error interno del servidor' });
+//   }
+// });
+
+// PUT /api/admin/users/:userId/deactivate - Desactivar usuario
+router.put('/users/:userId/deactivate', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // 1. Buscar el auth_uid en tu tabla
-    const { data: usuario, error: findError } = await supabaseAdmin
+    // Verificar que no es el usuario actual
+    const { data: usuarioActual } = await supabaseAdmin
       .from('usuarios')
-      .select('auth_uid')
-      .eq('id_usuario', userId)
+      .select('id_usuario')
+      .eq('auth_uid', req.user.id)
       .single();
 
-    if (findError) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (usuarioActual && parseInt(userId) === usuarioActual.id_usuario) {
+      return res.status(400).json({ 
+        error: 'No puedes desactivar tu propio usuario' 
+      });
     }
 
-    // 2. Eliminar de TU tabla 'usuarios'
-    const { error: usuarioError } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('usuarios')
-      .delete()
-      .eq('id_usuario', userId);
+      .update({ 
+        activo: false
+      })
+      .eq('id_usuario', userId)
+      .select()
+      .single();
 
-    if (usuarioError) {
-      console.error('Error eliminando de tabla usuarios:', usuarioError);
-    }
-
-    // 3. Eliminar usuario de Auth (si tiene auth_uid)
-    if (usuario.auth_uid) {
-      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(usuario.auth_uid);
-
-      if (authError) {
-        console.error('Error eliminando de auth:', authError);
-      }
-    }
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     res.json({ 
       success: true, 
-      message: 'Usuario eliminado correctamente' 
+      message: 'Usuario desactivado correctamente',
+      user: data
     });
 
   } catch (error) {
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/admin/users/:userId/activate - Reactivar usuario
+router.put('/users/:userId/activate', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .update({ 
+        activo: true
+      })
+      .eq('id_usuario', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    res.json({ 
+      success: true, 
+      message: 'Usuario activado correctamente',
+      user: data
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
