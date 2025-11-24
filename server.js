@@ -7,6 +7,8 @@ import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import productosRoutes from './routes/productos.js';
 import lotesRoutes from './routes/lotes.js';
+import entradasRoutes from './routes/entradas.js';
+
 
 dotenv.config();
 
@@ -19,6 +21,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/lotes', lotesRoutes);
+app.use('/api/entradas', entradasRoutes);
 
 // Ruta de prueba
 app.get('/api/health', (req, res) => {
