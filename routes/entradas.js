@@ -59,7 +59,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/entradas - Crear nueva entrada con detalles
+// POST /api/entradas - Crear nueva entrada con productos (nuevos o existentes)
+// POST /api/entradas - Crear nueva entrada con productos (nuevos o existentes)
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { 
@@ -67,20 +68,33 @@ router.post('/', authenticateToken, async (req, res) => {
       fecha_entrada, 
       proveedor, 
       archivo_acta,
-      detalles 
+      productos
     } = req.body;
 
-    // Validaciones
-    if (!numero_acta || !fecha_entrada || !proveedor || !detalles || !Array.isArray(detalles)) {
+    // Validaciones básicas
+    if (!numero_acta || !fecha_entrada || !proveedor || !productos || !Array.isArray(productos)) {
       return res.status(400).json({ 
-        error: 'Número de acta, fecha, proveedor y detalles son requeridos' 
+        error: 'Número de acta, fecha, proveedor y productos son requeridos' 
       });
     }
 
-    if (detalles.length === 0) {
+    if (productos.length === 0) {
       return res.status(400).json({ 
-        error: 'Debe incluir al menos un producto en los detalles' 
+        error: 'Debe incluir al menos un producto' 
       });
+    }
+
+    // 🎯 VALIDAR PRODUCTOS EN EL BACKEND TAMBIÉN
+    for (const producto of productos) {
+      if (producto.tipo === 'existente' && !producto.id_producto) {
+        return res.status(400).json({ error: 'Producto existente debe tener ID' });
+      }
+      if (producto.tipo === 'nuevo' && (!producto.codigo || !producto.nombre_articulo)) {
+        return res.status(400).json({ error: 'Producto nuevo debe tener código y nombre' });
+      }
+      if (!producto.numero_lote || !producto.fecha_vencimiento || !producto.cantidad) {
+        return res.status(400).json({ error: 'Todos los productos deben tener lote, vencimiento y cantidad' });
+      }
     }
 
     // Obtener el id_usuario del usuario autenticado
@@ -111,16 +125,76 @@ router.post('/', authenticateToken, async (req, res) => {
 
     if (entradaError) throw entradaError;
 
-    // 2. Crear los detalles de la entrada
-    const detallesConEntrada = detalles.map(detalle => ({
-      ...detalle,
-      id_entrada: entrada.id_entrada,
-      id_usuario_registrador: usuario.id_usuario
-    }));
+    // 2. Procesar cada producto de la entrada
+    const detallesEntrada = [];
 
+    for (const producto of productos) {
+      let idProducto = producto.id_producto;
+
+      // 🎯 SI ES PRODUCTO NUEVO, CREARLO
+      if (producto.tipo === 'nuevo') {
+        // Verificar que el código no exista
+        const { data: productoExistente, error: checkError } = await supabaseAdmin
+          .from('productos')
+          .select('id_producto')
+          .eq('codigo', producto.codigo)
+          .single();
+
+        if (productoExistente) {
+          // Si el producto ya existe con ese código, usar el existente
+          idProducto = productoExistente.id_producto;
+        } else {
+          // Crear el nuevo producto
+          const { data: nuevoProducto, error: productoError } = await supabaseAdmin
+            .from('productos')
+            .insert([
+              {
+                codigo: producto.codigo,
+                nombre_articulo: producto.nombre_articulo,
+                descripcion: producto.descripcion,
+                activo: true,
+                id_usuario_creador: usuario.id_usuario
+              }
+            ])
+            .select()
+            .single();
+
+          if (productoError) throw productoError;
+          idProducto = nuevoProducto.id_producto;
+        }
+      }
+
+      // 🎯 CREAR EL LOTE (para ambos casos)
+      const { data: nuevoLote, error: loteError } = await supabaseAdmin
+        .from('lotes')
+        .insert([
+          {
+            id_producto: idProducto,
+            numero_lote: producto.numero_lote,
+            fecha_vencimiento: producto.fecha_vencimiento,
+            cantidad_inicial: producto.cantidad,
+            stock_actual: producto.cantidad,
+            id_usuario_creador: usuario.id_usuario
+          }
+        ])
+        .select()
+        .single();
+
+      if (loteError) throw loteError;
+
+      // Agregar a los detalles de la entrada
+      detallesEntrada.push({
+        id_entrada: entrada.id_entrada,
+        id_lote: nuevoLote.id_lote,
+        cantidad: producto.cantidad,
+        id_usuario_registrador: usuario.id_usuario
+      });
+    }
+
+    // 3. Crear los detalles de la entrada
     const { data: detallesData, error: detallesError } = await supabaseAdmin
       .from('detalle_entradas')
-      .insert(detallesConEntrada)
+      .insert(detallesEntrada)
       .select(`
         *,
         lotes (
@@ -130,12 +204,12 @@ router.post('/', authenticateToken, async (req, res) => {
       `);
 
     if (detallesError) {
-      // Si fallan los detalles, eliminar la entrada principal
+      // Si fallan los detalles, eliminar todo
       await supabaseAdmin.from('entradas').delete().eq('id_entrada', entrada.id_entrada);
       throw detallesError;
     }
 
-    // 3. Obtener la entrada completa con detalles
+    // 4. Obtener la entrada completa con detalles
     const { data: entradaCompleta, error: errorCompleta } = await supabaseAdmin
       .from('entradas')
       .select(`
@@ -163,13 +237,9 @@ router.post('/', authenticateToken, async (req, res) => {
     if (error.code === '23505') {
       return res.status(400).json({ error: 'El número de acta ya existe' });
     }
-    if (error.code === '23503') {
-      return res.status(400).json({ error: 'Uno de los lotes no existe' });
-    }
     res.status(500).json({ error: error.message });
   }
 });
-
 // DELETE /api/entradas/:id - Eliminar entrada (y sus detalles en cascada)
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
