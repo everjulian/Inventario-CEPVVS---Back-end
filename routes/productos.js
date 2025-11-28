@@ -53,10 +53,30 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { codigo, nombre_articulo, descripcion, activo = true, categoria_id } = req.body;
 
-    // ✅ VALIDACIONES
+    // ✅ VALIDACIONES MEJORADAS
     if (!codigo || !nombre_articulo || !categoria_id) {
       return res.status(400).json({ 
         error: 'Código, nombre y categoría son requeridos' 
+      });
+    }
+
+    // Validar que no sean solo espacios en blanco
+    if (codigo.trim().length === 0 || nombre_articulo.trim().length === 0) {
+      return res.status(400).json({ 
+        error: 'Código y nombre no pueden estar vacíos' 
+      });
+    }
+
+    // Validar longitud mínima
+    if (codigo.trim().length < 2) {
+      return res.status(400).json({ 
+        error: 'El código debe tener al menos 2 caracteres' 
+      });
+    }
+
+    if (nombre_articulo.trim().length < 3) {
+      return res.status(400).json({ 
+        error: 'El nombre debe tener al menos 3 caracteres' 
       });
     }
 
@@ -69,6 +89,19 @@ router.post('/', authenticateToken, async (req, res) => {
 
     if (catError || !categoria) {
       return res.status(400).json({ error: 'La categoría no existe' });
+    }
+
+    // ✅ VALIDAR CÓDIGO DUPLICADO (antes de insertar)
+    const { data: productoExistente, error: checkError } = await supabaseAdmin
+      .from('productos')
+      .select('id_producto')
+      .eq('codigo', codigo.trim())
+      .single();
+
+    if (productoExistente) {
+      return res.status(400).json({ 
+        error: 'Ya existe un producto con este código' 
+      });
     }
 
     // Obtener el id_usuario del usuario autenticado
@@ -86,9 +119,9 @@ router.post('/', authenticateToken, async (req, res) => {
       .from('productos')
       .insert([
         {
-          codigo,
-          nombre_articulo,
-          descripcion,
+          codigo: codigo.trim(),
+          nombre_articulo: nombre_articulo.trim(),
+          descripcion: descripcion ? descripcion.trim() : null,
           activo,
           categoria_id,
           id_usuario_creador: usuario.id_usuario
@@ -96,18 +129,22 @@ router.post('/', authenticateToken, async (req, res) => {
       ])
       .select(`
         *,
-        categorias: categoria_id (*)
+        categorias:categoria_id (*)
       `)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Capturar error de unique constraint por si acaso
+      if (error.code === '23505') {
+        return res.status(400).json({ error: 'El código del producto ya existe' });
+      }
+      throw error;
+    }
 
     res.status(201).json({ producto: data });
   } catch (error) {
-    if (error.code === '23505') {
-      return res.status(400).json({ error: 'El código del producto ya existe' });
-    }
-    res.status(500).json({ error: error.message });
+    console.error('Error creating product:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

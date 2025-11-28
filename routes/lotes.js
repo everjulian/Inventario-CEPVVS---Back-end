@@ -86,15 +86,17 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    // Validar que la fecha de vencimiento sea futura
-    const vencimiento = new Date(fecha_vencimiento);
+    // Validar fecha de vencimiento
+    const fecha = new Date(fecha_vencimiento);
+    if (isNaN(fecha.getTime())) {
+      return res.status(400).json({ error: 'Fecha de vencimiento inválida' });
+    }
+    
+    // Validar que no sea fecha pasada
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    
-    if (vencimiento <= hoy) {
-      return res.status(400).json({ 
-        error: 'La fecha de vencimiento debe ser futura' 
-      });
+    if (fecha < hoy) {
+      return res.status(400).json({ error: 'La fecha de vencimiento no puede ser anterior a hoy' });
     }
 
     // Validar que la cantidad sea positiva
@@ -156,14 +158,16 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     // Validar fecha de vencimiento si se está actualizando
     if (fecha_vencimiento) {
-      const vencimiento = new Date(fecha_vencimiento);
+      const fecha = new Date(fecha_vencimiento);
+      if (isNaN(fecha.getTime())) {
+        return res.status(400).json({ error: 'Fecha de vencimiento inválida' });
+      }
+      
+      // Validar que no sea fecha pasada
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
-      
-      if (vencimiento <= hoy) {
-        return res.status(400).json({ 
-          error: 'La fecha de vencimiento debe ser futura' 
-        });
+      if (fecha < hoy) {
+        return res.status(400).json({ error: 'La fecha de vencimiento no puede ser anterior a hoy' });
       }
     }
 
