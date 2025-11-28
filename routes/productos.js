@@ -10,6 +10,7 @@ router.get('/', authenticateToken, async (req, res) => {
       .from('productos')
       .select(`
         *,
+        categorias: categoria_id (*),
         usuarios:id_usuario_creador (username, nombre, apellido)
       `)
       .order('fecha_creacion', { ascending: false });
@@ -31,6 +32,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       .from('productos')
       .select(`
         *,
+        categorias: categoria_id (*),
         usuarios:id_usuario_creador (username, nombre, apellido),
         lotes (*)
       `)
@@ -46,13 +48,27 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/productos - Crear nuevo producto
+// POST /api/productos - Crear producto
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { codigo, nombre_articulo, descripcion, activo = true } = req.body;
+    const { codigo, nombre_articulo, descripcion, activo = true, categoria_id } = req.body;
 
-    if (!codigo || !nombre_articulo) {
-      return res.status(400).json({ error: 'Código y nombre son requeridos' });
+    // ✅ VALIDACIONES
+    if (!codigo || !nombre_articulo || !categoria_id) {
+      return res.status(400).json({ 
+        error: 'Código, nombre y categoría son requeridos' 
+      });
+    }
+
+    // ✅ VALIDAR CATEGORÍA EXISTENTE
+    const { data: categoria, error: catError } = await supabaseAdmin
+      .from('categorias')
+      .select('id_categoria')
+      .eq('id_categoria', categoria_id)
+      .single();
+
+    if (catError || !categoria) {
+      return res.status(400).json({ error: 'La categoría no existe' });
     }
 
     // Obtener el id_usuario del usuario autenticado
@@ -74,10 +90,14 @@ router.post('/', authenticateToken, async (req, res) => {
           nombre_articulo,
           descripcion,
           activo,
+          categoria_id,
           id_usuario_creador: usuario.id_usuario
         }
       ])
-      .select()
+      .select(`
+        *,
+        categorias: categoria_id (*)
+      `)
       .single();
 
     if (error) throw error;
@@ -95,7 +115,20 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { codigo, nombre_articulo, descripcion, activo } = req.body;
+    const { codigo, nombre_articulo, descripcion, activo, categoria_id } = req.body;
+
+    // ✅ VALIDAR CATEGORÍA SI SE ESTÁ ACTUALIZANDO
+    if (categoria_id) {
+      const { data: categoria, error: catError } = await supabaseAdmin
+        .from('categorias')
+        .select('id_categoria')
+        .eq('id_categoria', categoria_id)
+        .single();
+
+      if (catError || !categoria) {
+        return res.status(400).json({ error: 'La categoría no existe' });
+      }
+    }
 
     const { data, error } = await supabaseAdmin
       .from('productos')
@@ -104,10 +137,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
         nombre_articulo,
         descripcion,
         activo,
+        categoria_id,
         fecha_actualizacion: new Date()
       })
       .eq('id_producto', id)
-      .select()
+      .select(`
+        *,
+        categorias: categoria_id (*)
+      `)
       .single();
 
     if (error) throw error;
