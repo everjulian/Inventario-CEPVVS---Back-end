@@ -12,6 +12,7 @@ import salidasRoutes from './routes/salidas.js';
 import categoriasRoutes from './routes/categorias.js';
 
 
+
 dotenv.config();
 
 const app = express();

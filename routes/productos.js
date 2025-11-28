@@ -190,4 +190,87 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/productos/inventario/stock - Listar productos con información de lotes (PARA INVENTARIO)
+router.get('/inventario/stock', authenticateToken, async (req, res) => {
+  try {
+    const { data: productosConLotes, error } = await supabaseAdmin
+      .from('productos')
+      .select(`
+        id_producto,
+        codigo,
+        nombre_articulo,
+        descripcion,
+        activo,
+        categoria_id,
+        categorias:categoria_id (
+          id_categoria,
+          nombre,
+          descripcion
+        ),
+        lotes:lotes!inner (
+          id_lote,
+          numero_lote,
+          fecha_vencimiento,
+          cantidad_inicial,
+          stock_actual,
+          estado,
+          fecha_creacion
+        )
+      `)
+      .eq('activo', true)
+      .order('nombre_articulo');
+
+    if (error) throw error;
+
+    // Procesar los datos para el formato requerido
+    const productosFormateados = productosConLotes.map(producto => {
+      if (producto.lotes && producto.lotes.length > 0) {
+        return producto.lotes.map(lote => {
+          // Calcular estado de vencimiento
+          const hoy = new Date();
+          const fechaVencimiento = new Date(lote.fecha_vencimiento);
+          const diasHastaVencimiento = Math.ceil((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
+          
+          let estado_vencimiento = 'vigente';
+          if (diasHastaVencimiento < 0) {
+            estado_vencimiento = 'vencido';
+          } else if (diasHastaVencimiento <= 30) {
+            estado_vencimiento = 'por_vencer';
+          }
+
+          return {
+            // Información del producto
+            id: producto.id_producto,
+            codigo: producto.codigo,
+            nombre: producto.nombre_articulo,
+            categoria_id: producto.categoria_id,
+            categoria: producto.categorias ? {
+              id: producto.categorias.id_categoria,
+              nombre: producto.categorias.nombre,
+              descripcion: producto.categorias.descripcion
+            } : null,
+            
+            // Información del lote
+            lote: lote.numero_lote,
+            fecha_vencimiento: lote.fecha_vencimiento,
+            unidad_medida: 'unidades',
+            stock_actual: lote.stock_actual,
+            estado_vencimiento: estado_vencimiento,
+            
+            // Información adicional del lote
+            id_lote: lote.id_lote,
+            cantidad_inicial: lote.cantidad_inicial,
+            estado_lote: lote.estado
+          };
+        });
+      }
+      return [];
+    }).flat().filter(item => item.stock_actual > 0);
+
+    res.json({ productos: productosFormateados });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
