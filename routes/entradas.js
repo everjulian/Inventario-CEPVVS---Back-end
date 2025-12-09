@@ -92,6 +92,10 @@ router.post('/', authenticateToken, async (req, res) => {
       if (producto.tipo === 'nuevo' && (!producto.codigo || !producto.nombre_articulo)) {
         return res.status(400).json({ error: 'Producto nuevo debe tener código y nombre' });
       }
+      // 🎯 AGREGAR VALIDACIÓN DE CATEGORÍA
+      if (producto.tipo === 'nuevo' && !producto.categoria_id) {
+        return res.status(400).json({ error: 'Producto nuevo debe tener una categoría asignada' });
+      }
       if (!producto.numero_lote || !producto.fecha_vencimiento || !producto.cantidad) {
         return res.status(400).json({ error: 'Todos los productos deben tener lote, vencimiento y cantidad' });
       }
@@ -144,18 +148,34 @@ router.post('/', authenticateToken, async (req, res) => {
           // Si el producto ya existe con ese código, usar el existente
           idProducto = productoExistente.id_producto;
         } else {
-          // Crear el nuevo producto
+          // 🎯 CREAR EL NUEVO PRODUCTO CON CATEGORÍA
+          const productoData = {
+            codigo: producto.codigo,
+            nombre_articulo: producto.nombre_articulo,
+            descripcion: producto.descripcion,
+            activo: true,
+            id_usuario_creador: usuario.id_usuario
+          };
+
+          // 🎯 SOLUCIÓN: AGREGAR CATEGORÍA SI EXISTE
+          if (producto.categoria_id) {
+            // Validar que la categoría existe
+            const { data: categoriaExistente } = await supabaseAdmin
+              .from('categorias')
+              .select('id_categoria')
+              .eq('id_categoria', producto.categoria_id)
+              .single();
+
+            if (categoriaExistente) {
+              productoData.categoria_id = producto.categoria_id;
+            } else {
+              console.warn(`Categoría ${producto.categoria_id} no encontrada, creando producto sin categoría`);
+            }
+          }
+
           const { data: nuevoProducto, error: productoError } = await supabaseAdmin
             .from('productos')
-            .insert([
-              {
-                codigo: producto.codigo,
-                nombre_articulo: producto.nombre_articulo,
-                descripcion: producto.descripcion,
-                activo: true,
-                id_usuario_creador: usuario.id_usuario
-              }
-            ])
+            .insert([productoData])
             .select()
             .single();
 
