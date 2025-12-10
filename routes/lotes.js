@@ -17,7 +17,42 @@ router.get('/', authenticateToken, async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ lotes: data });
+    // Calcular estado actualizado para cada lote (igual que en inventario)
+    const lotesConEstadoActualizado = data.map(lote => {
+      const hoy = new Date();
+      const fechaVencimiento = new Date(lote.fecha_vencimiento);
+      const diasHastaVencimiento = Math.ceil((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
+      
+      let estado_calculado = lote.estado;
+      
+      // Solo actualizar estado si tiene stock
+      if (lote.stock_actual > 0) {
+        if (diasHastaVencimiento < 0) {
+          estado_calculado = 'vencido';
+        } else if (diasHastaVencimiento <= 30) {
+          // Si está por vencer pero el estado actual es 'disponible', mantenerlo como 'disponible'
+          // o cambiar a 'por_vencer' si prefieres
+          if (lote.estado === 'disponible') {
+            estado_calculado = 'disponible'; // o 'por_vencer' si quieres diferenciar
+          }
+        } else {
+          estado_calculado = 'disponible';
+        }
+      } else {
+        estado_calculado = 'agotado';
+      }
+
+      return {
+        ...lote,
+        estado: estado_calculado,
+        dias_hasta_vencimiento: diasHastaVencimiento,
+        // Información adicional para el frontend
+        estado_vencimiento: diasHastaVencimiento < 0 ? 'vencido' : 
+                           diasHastaVencimiento <= 30 ? 'por_vencer' : 'vigente'
+      };
+    });
+
+    res.json({ lotes: lotesConEstadoActualizado });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
