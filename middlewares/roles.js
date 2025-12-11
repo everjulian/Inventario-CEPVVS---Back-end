@@ -1,6 +1,7 @@
+// middlewares/roles.js
 import { getUserRole } from '../services/user.service.js';
 
-export const requireAdmin = async (req, res, next) => {
+export const requireSuperAdmin = async (req, res, next) => {
   try {
     const role = await getUserRole(req.user.id);
 

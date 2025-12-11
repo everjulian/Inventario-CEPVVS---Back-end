@@ -58,7 +58,7 @@ export const remove = async (req, res, next) => {
   }
 };
 
-export const getSugerenciaNumeroActa = async (req, res, next) => {
+export const getSugerencia = async (req, res, next) => {
   try {
     const sugerencia = await entradasService.getSugerenciaNumeroActa();
     res.json({ sugerencia });

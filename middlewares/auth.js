@@ -9,14 +9,12 @@ export const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: 'Token de autorización requerido' });
     }
 
-    // Validar token usando el cliente ANON
     const { data, error } = await supabaseAnon.auth.getUser(token);
 
     if (error || !data?.user) {
       return res.status(401).json({ error: 'Token inválido o expirado' });
     }
 
-    // Guardar el usuario decodificado
     req.user = data.user;
     next();
   } catch (err) {

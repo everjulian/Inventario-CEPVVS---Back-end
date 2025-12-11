@@ -1,6 +1,6 @@
 // routes/salidas.routes.js
 import { Router } from 'express';
-import { authenticateToken } from '../config/supabase.js';
+import { authenticateToken } from '../middlewares/auth.js';
 import * as salidasController from '../controllers/salidas.controller.js';
 
 const router = Router();

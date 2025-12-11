@@ -1,12 +1,12 @@
 import { Router } from 'express';
 
 import authRoutes from './auth.js';
-import adminRoutes from './admin.js';
-import productosRoutes from './productos.js';
-import lotesRoutes from './lotes.js';
-import entradasRoutes from './entradas.js';
-import salidasRoutes from './salidas.js';
-import categoriasRoutes from './categorias.js';
+import adminRoutes from './admin.routes.js';
+import productosRoutes from './productos.routes.js';
+import lotesRoutes from './lotes.routes.js';
+import entradasRoutes from './entradas.routes.js';
+import salidasRoutes from './salidas.routes.js';
+import categoriasRoutes from './categorias.routes.js';
 
 const router = Router();
 
