@@ -1,5 +1,6 @@
 // controllers/productos.controller.js
 import * as productosService from '../services/productos.service.js';
+import { getUserRole } from '../services/user.service.js';
 
 export const getAll = async (req, res, next) => {
   try {
@@ -43,7 +44,11 @@ export const update = async (req, res, next) => {
 
 export const remove = async (req, res, next) => {
   try {
-    const result = await productosService.remove(req.params.id);
+    // Obtener el rol del usuario autenticado
+    const userRole = await getUserRole(req.user.id);
+    const isAdmin = userRole === 'admin';
+    
+    const result = await productosService.remove(req.params.id, isAdmin);
     res.json(result);
   } catch (err) {
     next(err);

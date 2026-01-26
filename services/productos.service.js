@@ -152,7 +152,7 @@ export const update = async (id, body) => {
 };
 
 // Eliminar
-export const remove = async (id) => {
+export const remove = async (id, isAdmin = false) => {
   // Verificar si tiene lotes asociados
   const { data: lotes, error: lotesError } = await supabaseAdmin
     .from('lotes')
@@ -161,8 +161,9 @@ export const remove = async (id) => {
 
   if (lotesError) throw lotesError;
 
-  if (lotes.length > 0) {
-    throw new Error('No se puede eliminar el producto porque tiene lotes asociados');
+  // Si no es admin y tiene lotes, rechazar
+  if (!isAdmin && lotes.length > 0) {
+    throw new Error('No se puede eliminar el producto porque tiene lotes asociados. Solo un administrador puede hacerlo.');
   }
 
   const { error } = await supabaseAdmin

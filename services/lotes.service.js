@@ -228,7 +228,7 @@ export const update = async (id, body) => {
 // SERVICE: DELETE LOTE
 // ====================================================
 
-export const remove = async (id) => {
+export const remove = async (id, isAdmin = false) => {
   // Verificar movimientos
   const { data: lote, error: err } = await supabaseAdmin
     .from('lotes')
@@ -238,9 +238,10 @@ export const remove = async (id) => {
 
   if (err) throw err;
 
-  if (lote.stock_actual !== lote.cantidad_inicial) {
+  // Si no es admin y tiene movimientos, rechazar
+  if (!isAdmin && lote.stock_actual !== lote.cantidad_inicial) {
     throw new Error(
-      'No se puede eliminar el lote porque tiene movimientos de stock'
+      'No se puede eliminar el lote porque tiene movimientos de stock. Solo un administrador puede hacerlo.'
     );
   }
 

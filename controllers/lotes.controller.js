@@ -1,4 +1,5 @@
 import * as lotesService from '../services/lotes.service.js';
+import { getUserRole } from '../services/user.service.js';
 
 // ----------------------------------------
 // GET /api/lotes
@@ -69,7 +70,11 @@ export const update = async (req, res, next) => {
 export const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await lotesService.remove(id);
+    // Obtener el rol del usuario autenticado
+    const userRole = await getUserRole(req.user.id);
+    const isAdmin = userRole === 'admin';
+    
+    const result = await lotesService.remove(id, isAdmin);
     res.json(result);
   } catch (error) {
     next(error);
