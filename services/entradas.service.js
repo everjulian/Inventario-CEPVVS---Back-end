@@ -209,7 +209,7 @@ export const create = async (body, user) => {
     });
   }
 
-  // 3. Insertar detalle_entradas
+  // 3. Insertar detalle_entradas (el trigger sumará al stock_actual)
   const { error: detallesError } = await supabaseAdmin
     .from('detalle_entradas')
     .insert(detallesEntrada);
