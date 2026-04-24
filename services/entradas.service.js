@@ -107,7 +107,7 @@ async function crearLote(producto, idProducto, idUsuario) {
       numero_lote: producto.numero_lote,
       fecha_vencimiento: producto.fecha_vencimiento,
       cantidad_inicial: producto.cantidad,
-      stock_actual: producto.cantidad,
+      stock_actual: 0,
       id_usuario_creador: idUsuario
     })
     .select()
