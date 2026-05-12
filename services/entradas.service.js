@@ -171,7 +171,20 @@ export const create = async (body, user) => {
 
   const { numero_acta, fecha_entrada, proveedor, archivo_acta, productos } = body;
 
-  // 1. Crear la entrada principal
+  // 1. Validar que no exista ya el acta (duplicado)
+  const { data: duplicado } = await supabaseAdmin
+    .from('entradas')
+    .select('id_entrada')
+    .eq('numero_acta', numero_acta)
+    .single();
+
+  if (duplicado) {
+    const error = new Error('Ya existe una entrada con este número de acta. Registro duplicado no permitido.');
+    error.status = 400;
+    throw error;
+  }
+
+  // 2. Crear la entrada principal
   const { data: entrada, error: entradaError } = await supabaseAdmin
     .from('entradas')
     .insert({

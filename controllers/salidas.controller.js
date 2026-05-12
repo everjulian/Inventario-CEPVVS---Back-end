@@ -72,6 +72,13 @@ export async function create(req, res, next) {
     });
 
   } catch (err) {
+    if (err?.status === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    // Detectar error código duplicado de DB
+    if (err?.code === '23505') {
+      return res.status(400).json({ error: 'El número de acta ya existe' });
+    }
     next(err);
   }
 }

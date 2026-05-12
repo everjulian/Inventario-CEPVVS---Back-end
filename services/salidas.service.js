@@ -72,6 +72,19 @@ export async function getUsuarioIdByAuth(authUid) {
 }
 
 export async function crearSalida(salidaData) {
+  // Validar duplicado
+  const { data: duplicado } = await supabaseAdmin
+    .from('salidas')
+    .select('id_salida')
+    .eq('numero_acta_salida', salidaData.numero_acta_salida)
+    .single();
+
+  if (duplicado) {
+    const err = new Error('Ya existe una salida con este número de acta. Registro duplicado no permitido.');
+    err.status = 400;
+    throw err;
+  }
+
   const { data, error } = await supabaseAdmin
     .from('salidas')
     .insert([salidaData])

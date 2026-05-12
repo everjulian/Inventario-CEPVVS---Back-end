@@ -33,7 +33,11 @@ export const create = async (req, res, next) => {
       message: 'Entrada registrada exitosamente'
     });
   } catch (err) {
-    // Detectar error código duplicado (acta repetida)
+    // Detectar error de duplicidad o regla de negocio
+    if (err?.status === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    // Detectar error código duplicado de DB (acta repetida)
     if (err?.code === '23505') {
       return res.status(400).json({ error: 'El número de acta ya existe' });
     }
