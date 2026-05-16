@@ -6,23 +6,27 @@ import routes from './routes/index.js';
 
 const app = express();
 
-// Middlewares de Seguridad Globales
-// Helmet añade cabeceras HTTP de seguridad (previene XSS, Clickjacking, etc.)
-app.use(helmet()); 
-
-// Rate Limiting (Prevención de ataques de fuerza bruta y mitigación básica de DDoS)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Límite de 100 peticiones por IP por ventana
-  message: { error: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo después de 15 minutos.' }
-});
-app.use(limiter);
-
-// Middlewares globales
-app.use(express.json());
+// 1. CORS debe ir primero para responder correctamente a las peticiones preflight (OPTIONS)
 app.use(cors({
   origin: process.env.CLIENT_URL || '*',   // Ajustar en producción
 }));
+
+// 2. Parseo de JSON
+app.use(express.json());
+
+// 3. Middlewares de Seguridad Globales
+// Helmet añade cabeceras HTTP de seguridad. Se relaja la política de recursos cruzados para permitir al frontend (CORS).
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+})); 
+
+// Rate Limiting (Prevención de ataques de fuerza bruta y mitigación básica de DDoS)
+const limiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutos (tiempo de espera más corto)
+  max: 1500, // Límite de 1500 peticiones por IP por ventana (permite uso fluido de la app)
+  message: { error: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo después de 5 minutos.' }
+});
+app.use(limiter);
 
 // Rutas
 app.use('/api', routes);
